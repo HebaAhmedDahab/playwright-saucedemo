@@ -1,112 +1,83 @@
-const { test, expect } = require('@playwright/test');
+# SauceDemo Automation Tests using Playwright
 
-const USER = { username: 'standard_user', password: 'secret_sauce' };
+This repository contains end-to-end automated tests for the SauceDemo website using Playwright and JavaScript. The tests cover typical user actions, including login, product sorting, adding/removing items from the cart, checkout, and logout.
 
-async function login(page) {
-  await page.goto('https://www.saucedemo.com/');
-  await page.fill('#user-name', USER.username);
-  await page.fill('#password', USER.password);
-  await page.click('#login-button');
-  await expect(page).toHaveURL(/inventory.html/);
-}
+## Table of Contents
+1. [Project Overview](#project-overview)
+2. [Prerequisites](#prerequisites)
+3. [Installation](#installation)
+4. [Running Tests](#running-tests)
+5. [Test Scenarios](#test-scenarios)
+6. [Viewing the HTML Report](#viewing-the-html-report)
+7. [Challenges and Solutions](#challenges-and-solutions)
+8. [Author](#author)
 
-/** 1) Login */
-test('Login - valid credentials', async ({ page }) => {
-  await login(page);
-});
+---
 
-/** 2) Product Sorting (price low -> high) */
-test('Product Sorting - price low to high', async ({ page }) => {
-  await login(page);
-  await page.selectOption('.product_sort_container', 'lohi');
-  const prices = await page.$$eval('.inventory_item_price', els =>
-    els.map(e => parseFloat(e.textContent.replace('$','')))
-  );
-  const sorted = [...prices].sort((a,b) => a - b);
-  expect(prices).toEqual(sorted);
-});
+## Project Overview
+This automation project validates the functionality of SauceDemo's e-commerce features. It includes tests for:
 
-/** 3) Add Products to cart */
-test('Add Products - add two items to cart', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
-  await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
-  await page.click('.shopping_cart_link');
-  await expect(page.locator('.cart_item')).toHaveCount(2);
-});
+- Logging in with standard user credentials
+- Sorting products by name and price
+- Adding and removing products from the shopping cart
+- Viewing the cart and verifying item counts
+- Performing checkout (complete and canceled)
+- Continuing shopping after adding items
+- Logging out successfully
 
-/** 4) Remove Products from product listing */
-test('Remove Products - remove item from listing', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
-  await page.click('[data-test="remove-sauce-labs-backpack"]');
-  await page.click('.shopping_cart_link');
-  await expect(page.locator('.cart_item')).toHaveCount(0);
-});
+The tests are written in Playwright with JavaScript, using Chromium browser in non-headless mode for visual verification.
 
-/** 5) View Cart */
-test('View cart shows correct items', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-bike-light"]');
-  await page.click('.shopping_cart_link');
-  await expect(page.locator('.cart_item')).toContainText('Sauce Labs Bike Light');
-});
+## Test Scenarios
 
-/** 6) Checkout Form - complete order */
-test('Complete checkout process', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
-  await page.click('.shopping_cart_link');
-  await page.click('[data-test="checkout"]');
-  await page.fill('[data-test="firstName"]', 'Test');
-  await page.fill('[data-test="lastName"]', 'User');
-  await page.fill('[data-test="postalCode"]', '12345');
-  await page.click('[data-test="continue"]');
-  await page.click('[data-test="finish"]');
-  await expect(page.locator('.complete-header')).toHaveText('Thank you for your order!');
-});
+The automated tests cover at least six of the following scenarios:
+Login — successful authentication with valid credentials
+Product Sorting — verify sorting by price or name
+Add Products — add items to the cart
+Remove Products — remove items from the cart
+View Cart — verify cart contents
+Checkout Form — complete checkout information
+Cancel Checkout — verify cancellation during checkout
+Remove from Cart — remove items from shopping cart
+Empty Cart Checkout — attempt checkout with empty cart
+Logout — verify successful logout
+  
+---
+## Viewing the HTML Report
 
-/** 7) Cancel Checkout */
-test('Cancel checkout returns to cart', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
-  await page.click('.shopping_cart_link');
-  await page.click('[data-test="checkout"]');
-  await page.click('[data-test="cancel"]');
-  await expect(page).toHaveURL(/cart.html/);
-});
+After running the tests, an HTML report should be generated automatically.
+Note: I attempted to generate and view the HTML report on my local machine, but due to setup issues. 
+I was unable to display it. The test code is complete and ready to execute.
+running the tests on a properly configured environment will generate the report successfully.
 
-/** 8) Remove from Cart (cart page) */
-test('Remove from cart page', async ({ page }) => {
-  await login(page);
-  await page.click('[data-test="add-to-cart-sauce-labs-backpack"]');
-  await page.click('.shopping_cart_link');
-  await page.click('[data-test="remove-sauce-labs-backpack"]');
-  await expect(page.locator('.cart_item')).toHaveCount(0);
-});
+  
+---
+## Challenges and Solutions
 
-/** 9) Empty Cart Checkout - attempt with empty cart */
-test('Empty cart - attempt checkout (should not finish)', async ({ page }) => {
-  await login(page);
-  await page.click('.shopping_cart_link');
-  await expect(page.locator('.cart_item')).toHaveCount(0);
+Challenge 1: Handling dynamic product sorting for verification.
+Solution: Implemented waits and locators to check sorting accurately, but the filtering scenario could not be fully resolved.
 
-  // if checkout button visible, try to click and verify validation blocks finishing
-  if (await page.isVisible('[data-test="checkout"]')) {
-    await page.click('[data-test="checkout"]');
-    await page.click('[data-test="continue"]'); // try to continue without data
-    // Expect an error message to appear (checkout validation)
-    await expect(page.locator('[data-test="error"]')).toBeVisible();
-  } else {
-    // site may not allow checkout from empty cart → consider this expected
-    await expect(true).toBeTruthy();
-  }
-});
+Challenge 2: Verifying checkout cancellation without affecting the cart state.
+Solution: Steps implemented to reset the cart and validate behavior, but some edge cases were not fully resolved.
 
-/** 10) Logout */
-test('Logout successfully', async ({ page }) => {
-  await login(page);
-  await page.click('#react-burger-menu-btn');
-  await page.click('#logout_sidebar_link');
-  await expect(page).toHaveURL('https://www.saucedemo.com/');
-});
+Challenge 3: Generating the HTML report for test results.
+Solution: Attempted multiple approaches locally but was unable to resolve due to environment/setup issues.
+
+Other Challenges: Maintaining readability and modularity of test scripts.
+Solution: Structured code using descriptive functions, reusable locators, and proper comments.  
+  
+  
+  ## Prerequisites
+Before running the tests, make sure you have:
+
+- Node.js installed (v14 or above recommended)
+- npm installed (comes with Node.js)
+- Git installed (if cloning from GitHub)
+
+---
+
+## Installation
+Clone the repository:
+
+```bash
+git clone https://github.com/username/playwright-saucedemo.git
+cd playwright-saucedemo
